@@ -1,22 +1,38 @@
+import os
+from threading import Thread
+import asyncio
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ParseMode
 from aiogram.utils import executor
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-import gspread
-import os
-from config import BOT_TOKEN, ADMIN_CHAT_ID, SPREADSHEET_ID # შესაძლებელია ასევე დაამატო გადახდის მეთოდი.
 
-# Initialize bot
+from fastapi import FastAPI
+import uvicorn
+
+import gspread
+from config import BOT_TOKEN, ADMIN_CHAT_ID, SPREADSHEET_ID
+
+# === Initialize FastAPI (Render needs a port listener) ===
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {"status": "Bot is running on Render 🎉"}
+
+def start_web():
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+# === Initialize bot ===
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-# Google Sheets setup
+# === Google Sheets setup ===
 gc = gspread.service_account(filename="credentials.json")
 sh = gc.open_by_key(SPREADSHEET_ID)
 worksheet = sh.sheet1
 
-# Sample products
+# === Sample products ===
 products = {
     "1": "შეკვეთის მიმღები AI-ბოტი - 400₾",
     "2": "ჯავშნის მიმღები AI-ბოტი - 400₾",
@@ -29,6 +45,7 @@ products = {
 
 user_data = {}
 
+# === Bot Handlers ===
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
     await message.reply("გამარჯობა! აირჩიე პროდუქტი:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()]))
@@ -53,10 +70,9 @@ async def get_address(message: types.Message):
 async def get_phone(message: types.Message):
     user_data[message.from_user.id]["phone"] = message.text
 
-    # Save to Google Sheet
     data = user_data[message.from_user.id]
     worksheet.append_row([
-        message.from_user.username or message.from_user.id,
+        message.from_user.username or str(message.from_user.id),
         data["product"],
         data["name"],
         data["address"],
@@ -66,17 +82,23 @@ async def get_phone(message: types.Message):
     # Notify admin
     await bot.send_message(
         ADMIN_CHAT_ID,
-        f"ახალი შეკვეთა!\n"
-        f"მომხმარებელი: {message.from_user.username or message.from_user.id}\n"
-        f"პროდუქტი: {data['product']}\n"
-        f"სახელი: {data['name']}\n"
-        f"მისამართი: {data['address']}\n"
-        f"ტელეფონი: {data['phone']}"
+        f"📥 ახალი შეკვეთა:\n"
+        f"👤 მომხმარებელი: {message.from_user.username or message.from_user.id}\n"
+        f"📦 პროდუქტი: {data['product']}\n"
+        f"📛 სახელი: {data['name']}\n"
+        f"📍 მისამართი: {data['address']}\n"
+        f"📞 ტელეფონი: {data['phone']}"
     )
 
-    await message.reply("გმადლობთ! თქვენი შეკვეთა მიღებულია!")
+    await message.reply("გმადლობთ! თქვენი შეკვეთა მიღებულია ✅")
     del user_data[message.from_user.id]
 
+# === Start both FastAPI + Aiogram ===
 if __name__ == '__main__':
-    print("Bot is running...")
+    print("🚀 Starting bot + FastAPI...")
+
+    # Start FastAPI on a new thread
+    Thread(target=start_web).start()
+
+    # Start aiogram polling
     executor.start_polling(dp, skip_updates=True)
