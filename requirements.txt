@@ -3,3 +3,4 @@ python-dotenv
 google-api-python-client
 gspread
 oauth2client
+aiohttp<3.9.0  # 3.9.0 და უფრო ახალი არ მუშაობს Python 3.13-ში
