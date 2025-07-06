@@ -1,0 +1,5 @@
+aiogram==3.0.0b7
+python-dotenv
+google-api-python-client
+gspread
+oauth2client
