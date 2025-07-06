@@ -32,7 +32,6 @@ jobs:
             "$RENDER_WEBHOOK_URL"
 
       - name: Notify on Telegram (optional)
-        if: env.BOT_TOKEN != '' && env.CHAT_ID != ''
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
