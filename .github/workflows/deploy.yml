@@ -3,7 +3,7 @@ name: Deploy Bot to Render
 on:
   push:
     branches:
-      - master  # or main
+      - master  # or main depending on your default branch
 
 jobs:
   deploy:
@@ -23,18 +23,20 @@ jobs:
           pip install -r requirements.txt
 
       - name: Deploy to Render via webhook (optional)
+        if: env.RENDER_WEBHOOK_URL != ''
         env:
           RENDER_WEBHOOK_URL: ${{ secrets.RENDER_WEBHOOK_URL }}
         run: |
           curl -X POST -H "Content-Type: application/json" \
             -d '{"type":"push","payload":{"ref":"refs/heads/master"}}' \
-            $RENDER_WEBHOOK_URL || echo "Webhook failed"
+            "$RENDER_WEBHOOK_URL"
 
       - name: Notify on Telegram (optional)
+        if: env.BOT_TOKEN != '' && env.CHAT_ID != ''
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
         run: |
-          curl -s -X POST "https://api.telegram.org/bot $BOT_TOKEN/sendMessage" \
-            -d chat_id=$CHAT_ID \
+          curl -s -X POST "https://api.telegram.org/bot ${BOT_TOKEN}/sendMessage" \
+            -d chat_id="${CHAT_ID}" \
             -d text="✅ ბოტი განახლდა Render-ზე"
