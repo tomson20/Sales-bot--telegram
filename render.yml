@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: telegram-bot
+    runtime: python
+    repo: https://github.com/tomson20/Sales-bot--telegram
+    branch: master
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        value: YOUR_TELEGRAM_BOT_TOKEN  # ან მხოლოდ Dashboard-ით
+      - key: ADMIN_CHAT_ID
+        value: YOUR_TELEGRAM_CHAT_ID
+      - key: SPREADSHEET_ID
+        value: YOUR_SPREADSHEET_ID
+    autoDeploy: true
