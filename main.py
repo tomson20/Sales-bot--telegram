@@ -35,11 +35,17 @@ worksheet = sh.sheet1
 # === Sample products ===
 products = {
     "1": "შეკვეთის მიმღები AI-ბოტი - 400₾",
+    
     "2": "ჯავშნის მიმღები AI-ბოტი - 400₾",
+    
     "3": "პირადი AI-აგენტი - 400₾",
+    
     "4": "ინვოისების და გადახდის გადაგზავნის AI-ბოტი - 400₾",
+    
     "5": "თქვენზე მორგებული AI-ბოტების შექმნა - შეთანხმებით",
+    
     "6": "ავტომატიზირებული სისტემების შექმნა AI გამოყენებით - შეთანხმებით",
+    
     "7": "ვებგვერდების და აპლიკაციების შემოწმება უსაფრთხოებაზე - შეთანხმებით"
 }
 
@@ -48,7 +54,7 @@ user_data = {}
 # === Bot Handlers ===
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
-    await message.reply("გამარჯობა! აირჩიე პროდუქტი:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()]))
+    await message.reply("გამარჯობა! აირჩიეთ პროდუქტი ნომრის მიხედვით:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()]))
 
 @dp.message_handler(lambda message: message.text in products.keys())
 async def product_selected(message: types.Message):
