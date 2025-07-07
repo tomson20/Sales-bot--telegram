@@ -2,15 +2,15 @@ services:
   - type: web
     name: telegram-bot
     env: docker
-    repo: https://github.com/tomson20/Sales-bot--telegram
+    repo: https://github.com/შენი-მომხმარებელი/შენი-რეპო
     branch: master
     dockerContext: .
     dockerfilePath: Dockerfile
     envVars:
       - key: BOT_TOKEN
-        value: შენის ტოკენი
+        sync: false
       - key: ADMIN_CHAT_ID
-        value: შენი Chat ID
+        sync: false
       - key: SPREADSHEET_ID
-        value: შენი spreadsheet ID
+        sync: false
     autoDeploy: true
