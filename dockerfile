@@ -1,18 +1,16 @@
-# გამოსაყენებელი Python ვერსია
 FROM python:3.10-slim
 
-# სამუშაო დირექტორია
 WORKDIR /app
 
-# კოპირება
+# საჭირო სისტემური პაკეტები gspread-ისთვის და Cython პროექტებისთვის
+RUN apt-get update && apt-get install -y gcc libpq-dev curl
+
 COPY requirements.txt .
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Google credentials თუ გინდა პირდაპირ ჩააგდო (სხვა შემთხვევაში secrets-ში დაამატე)
 COPY . .
 
-# პორტი Render-ისთვის (FastAPI-ს გამო)
 ENV PORT=8000
 
-# სერვისის გაშვება
 CMD ["python", "main.py"]
