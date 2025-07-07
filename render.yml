@@ -2,7 +2,7 @@ services:
   - type: web
     name: telegram-bot
     env: docker
-    repo: https://github.com/შენი-მომხმარებელი/შენი-რეპო
+    repo: https://github.com/tomson20/Sales-bot--telegram
     branch: master
     dockerContext: .
     dockerfilePath: Dockerfile
