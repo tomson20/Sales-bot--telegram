@@ -19,7 +19,9 @@ app = FastAPI()
 
 # === Initialize bot ===
 bot = Bot(token=BOT_TOKEN)
+bot.set_current(bot)      # ✅ დაამატე
 dp = Dispatcher(bot)
+dp.set_current(dp)        # ✅ დაამატე
 
 # === Google Sheets setup ===
 gc = gspread.service_account(filename="credentials.json")
