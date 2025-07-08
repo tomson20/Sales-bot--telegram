@@ -5,8 +5,6 @@ from fastapi import FastAPI, Request
 import uvicorn
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.dispatcher.webhook import get_new_configured_app
-from aiogram.utils.executor import set_webhook
 from aiogram.utils.exceptions import BotBlocked, ChatNotFound, TelegramAPIError
 
 import gspread
@@ -48,6 +46,7 @@ async def root():
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     body = await request.body()
+    logging.info(f"📩 მიღებულია update: {body}")
     update = types.Update.parse_raw(body)
     await dp.process_update(update)
     return {"ok": True}
@@ -108,12 +107,18 @@ async def get_phone(message: types.Message):
 
 # === Start server & webhook setup ===
 if __name__ == "__main__":
-    async def on_startup():
-        await bot.set_webhook(WEBHOOK_URL)
+    import asyncio
 
-    async def on_shutdown():
-        logging.info("ბოტი ითიშება...")
+    async def startup():
+        await bot.set_webhook(WEBHOOK_URL)
+        logging.info(f"✅ Webhook დაყენებულია: {WEBHOOK_URL}")
+
+    async def shutdown():
+        logging.info("❌ Webhook იშლება...")
         await bot.delete_webhook()
 
-    port = int(os.environ.get("PORT", 10000))  # Render-ის მიერ გაწვდილი პორტი
+    asyncio.run(startup())
+
+    port = int(os.environ.get("PORT", 10000))  # Render პორტი
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
