@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 import uvicorn
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.dispatcher.webhook import get_new_configured_app
 from aiogram.utils.exceptions import BotBlocked, ChatNotFound, TelegramAPIError
 
 import gspread
@@ -17,11 +18,12 @@ logging.basicConfig(level=logging.INFO)
 # === Initialize FastAPI ===
 app = FastAPI()
 
-# === Initialize bot ===
+# === Initialize bot and dispatcher ===
 bot = Bot(token=BOT_TOKEN)
-bot.set_current(bot)      # ✅ დაამატე
+bot.set_current(bot)
+
 dp = Dispatcher(bot)
-dp.set_current(dp)        # ✅ დაამატე
+dp.set_current(dp)
 
 # === Google Sheets setup ===
 gc = gspread.service_account(filename="credentials.json")
@@ -50,33 +52,32 @@ async def root():
 async def telegram_webhook(request: Request):
     body = await request.body()
     logging.info(f"📩 მიღებულია update: {body}")
-
+    
     update = types.Update(**json.loads(body))
     await dp.process_update(update)
-
     return {"ok": True}
-
 
 # === Bot Handlers ===
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
-    await message.reply("გამარჯობა! აირჩიე პროდუქტი ნომრის მიხედვით:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()]))
+    text = "გამარჯობა! აირჩიე პროდუქტი ნომრის მიხედვით:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()])
+    await bot.send_message(chat_id=message.chat.id, text=text)
 
 @dp.message_handler(lambda message: message.text in products.keys())
 async def product_selected(message: types.Message):
     user_data[message.from_user.id] = {"product": products[message.text]}
-    await message.reply("შენ აირჩიე: " + products[message.text])
-    await message.reply("შეიყვანეთ თქვენი სახელი:")
+    await bot.send_message(message.chat.id, "შენ აირჩიე: " + products[message.text])
+    await bot.send_message(message.chat.id, "შეიყვანეთ თქვენი სახელი:")
 
 @dp.message_handler(lambda message: message.from_user.id in user_data and "name" not in user_data[message.from_user.id])
 async def get_name(message: types.Message):
     user_data[message.from_user.id]["name"] = message.text
-    await message.reply("შეიყვანეთ მისამართი:")
+    await bot.send_message(message.chat.id, "შეიყვანეთ მისამართი:")
 
 @dp.message_handler(lambda message: message.from_user.id in user_data and "address" not in user_data[message.from_user.id])
 async def get_address(message: types.Message):
     user_data[message.from_user.id]["address"] = message.text
-    await message.reply("შეიყვანეთ ტელეფონი:")
+    await bot.send_message(message.chat.id, "შეიყვანეთ ტელეფონი:")
 
 @dp.message_handler(lambda message: message.from_user.id in user_data and "phone" not in user_data[message.from_user.id])
 async def get_phone(message: types.Message):
@@ -108,22 +109,24 @@ async def get_phone(message: types.Message):
     except TelegramAPIError as e:
         logging.error(f"Telegram API შეცდომა: {e}")
 
-    await message.reply("გმადლობთ! თქვენი შეკვეთა მიღებულია ✅")
+    await bot.send_message(message.chat.id, "გმადლობთ! თქვენი შეკვეთა მიღებულია ✅")
     del user_data[message.from_user.id]
 
 # === Start server & webhook setup ===
 if __name__ == "__main__":
     import asyncio
 
-    async def startup():
+    async def on_startup():
         await bot.set_webhook(WEBHOOK_URL)
-        logging.info(f"✅ Webhook დაყენებულია: {WEBHOOK_URL}")
+        logging.info(f"Webhook დაყენებულია: {WEBHOOK_URL}")
 
-    async def shutdown():
-        logging.info("❌ Webhook იშლება...")
+    async def on_shutdown():
+        logging.info("ბოტი ითიშება...")
         await bot.delete_webhook()
 
-    asyncio.run(startup())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(on_startup())
 
-    port = int(os.environ.get("PORT", 10000))  # Render პორტი
+    port = int(os.environ.get("PORT", 10000))  # Render-ის პორტი
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
