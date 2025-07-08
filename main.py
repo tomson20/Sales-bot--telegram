@@ -47,9 +47,12 @@ async def root():
 async def telegram_webhook(request: Request):
     body = await request.body()
     logging.info(f"📩 მიღებულია update: {body}")
-    update = types.Update.parse_raw(body)
+
+    update = types.Update(**json.loads(body))
     await dp.process_update(update)
+
     return {"ok": True}
+
 
 # === Bot Handlers ===
 @dp.message_handler(commands=['start'])
@@ -121,4 +124,3 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))  # Render პორტი
     uvicorn.run("main:app", host="0.0.0.0", port=port)
-
