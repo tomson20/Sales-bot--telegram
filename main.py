@@ -1,16 +1,21 @@
 import os
 from threading import Thread
 import asyncio
+import logging
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ParseMode
 from aiogram.utils import executor
+from aiogram.utils.exceptions import BotBlocked, ChatNotFound, TelegramAPIError
 
 from fastapi import FastAPI
 import uvicorn
 
 import gspread
 from config import BOT_TOKEN, ADMIN_CHAT_ID, SPREADSHEET_ID
+
+# === Initialize logging ===
+logging.basicConfig(level=logging.INFO)
 
 # === Initialize FastAPI (Render needs a port listener) ===
 app = FastAPI()
@@ -35,17 +40,11 @@ worksheet = sh.sheet1
 # === Sample products ===
 products = {
     "1": "შეკვეთის მიმღები AI-ბოტი - 400₾",
-    
     "2": "ჯავშნის მიმღები AI-ბოტი - 400₾",
-    
     "3": "პირადი AI-აგენტი - 400₾",
-    
     "4": "ინვოისების და გადახდის გადაგზავნის AI-ბოტი - 400₾",
-    
     "5": "თქვენზე მორგებული AI-ბოტების შექმნა - შეთანხმებით",
-    
     "6": "ავტომატიზირებული სისტემების შექმნა AI გამოყენებით - შეთანხმებით",
-    
     "7": "ვებგვერდების და აპლიკაციების შემოწმება უსაფრთხოებაზე - შეთანხმებით"
 }
 
@@ -54,7 +53,7 @@ user_data = {}
 # === Bot Handlers ===
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
-    await message.reply("გამარჯობა! აირჩიეთ პროდუქტი ნომრის მიხედვით:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()]))
+    await message.reply("გამარჯობა! აირჩიე პროდუქტი ნომრის მიხედვით:\n" + "\n".join([f"{k}. {v}" for k, v in products.items()]))
 
 @dp.message_handler(lambda message: message.text in products.keys())
 async def product_selected(message: types.Message):
@@ -85,16 +84,23 @@ async def get_phone(message: types.Message):
         data["phone"]
     ])
 
-    # Notify admin
-    await bot.send_message(
-        ADMIN_CHAT_ID,
-        f"📥 ახალი შეკვეთა:\n"
-        f"👤 მომხმარებელი: {message.from_user.username or message.from_user.id}\n"
-        f"📦 პროდუქტი: {data['product']}\n"
-        f"📛 სახელი: {data['name']}\n"
-        f"📍 მისამართი: {data['address']}\n"
-        f"📞 ტელეფონი: {data['phone']}"
-    )
+    # Notify admin safely
+    try:
+        await bot.send_message(
+            ADMIN_CHAT_ID,
+            f"📥 ახალი შეკვეთა:\n"
+            f"👤 მომხმარებელი: {message.from_user.username or message.from_user.id}\n"
+            f"📦 პროდუქტი: {data['product']}\n"
+            f"📛 სახელი: {data['name']}\n"
+            f"📍 მისამართი: {data['address']}\n"
+            f"📞 ტელეფონი: {data['phone']}"
+        )
+    except BotBlocked:
+        logging.warning(f"ბოტი დაბლოკილია ADMIN_CHAT_ID: {ADMIN_CHAT_ID}")
+    except ChatNotFound:
+        logging.warning(f"ჩეთი ვერ მოიძებნა: {ADMIN_CHAT_ID}")
+    except TelegramAPIError as e:
+        logging.error(f"Telegram API შეცდომა: {e}")
 
     await message.reply("გმადლობთ! თქვენი შეკვეთა მიღებულია ✅")
     del user_data[message.from_user.id]
