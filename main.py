@@ -1,32 +1,22 @@
 import os
-from threading import Thread
-import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import ParseMode
-from aiogram.utils import executor
-from aiogram.utils.exceptions import BotBlocked, ChatNotFound, TelegramAPIError
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
 
-import gspread
-from config import BOT_TOKEN, ADMIN_CHAT_ID, SPREADSHEET_ID
+from aiogram import Bot, Dispatcher, types
+from aiogram.dispatcher.webhook import get_new_configured_app
+from aiogram.utils.executor import set_webhook
+from aiogram.utils.exceptions import BotBlocked, ChatNotFound, TelegramAPIError
 
-# === Initialize logging ===
+import gspread
+from config import BOT_TOKEN, ADMIN_CHAT_ID, SPREADSHEET_ID, WEBHOOK_URL
+
+# === Logging ===
 logging.basicConfig(level=logging.INFO)
 
-# === Initialize FastAPI (Render needs a port listener) ===
+# === Initialize FastAPI ===
 app = FastAPI()
-
-@app.get("/")
-async def root():
-    return {"status": "Bot is running on Render 🎉"}
-
-def start_web():
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
 
 # === Initialize bot ===
 bot = Bot(token=BOT_TOKEN)
@@ -49,6 +39,18 @@ products = {
 }
 
 user_data = {}
+
+# === Routes ===
+@app.get("/")
+async def root():
+    return {"status": "🤖 Bot is running with webhook on Render"}
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    body = await request.body()
+    update = types.Update.parse_raw(body)
+    await dp.process_update(update)
+    return {"ok": True}
 
 # === Bot Handlers ===
 @dp.message_handler(commands=['start'])
@@ -84,7 +86,6 @@ async def get_phone(message: types.Message):
         data["phone"]
     ])
 
-    # Notify admin safely
     try:
         await bot.send_message(
             ADMIN_CHAT_ID,
@@ -105,12 +106,14 @@ async def get_phone(message: types.Message):
     await message.reply("გმადლობთ! თქვენი შეკვეთა მიღებულია ✅")
     del user_data[message.from_user.id]
 
-# === Start both FastAPI + Aiogram ===
-if __name__ == '__main__':
-    print("🚀 Starting bot + FastAPI...")
+# === Start server & webhook setup ===
+if __name__ == "__main__":
+    async def on_startup():
+        await bot.set_webhook(WEBHOOK_URL)
 
-    # Start FastAPI on a new thread
-    Thread(target=start_web).start()
+    async def on_shutdown():
+        logging.info("ბოტი ითიშება...")
+        await bot.delete_webhook()
 
-    # Start aiogram polling
-    executor.start_polling(dp, skip_updates=True)
+    port = int(os.environ.get("PORT", 10000))  # Render-ის მიერ გაწვდილი პორტი
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
